@@ -169,11 +169,6 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 
--- Remotes Variables Setup
-local changeActionMode = game:GetService("ReplicatedStorage").Packages._Index:FindFirstChild("sleitnick_knit@1.5.1").knit.Services.MainService.RE.ChangeActionMode
-local attackRemote = game:GetService("ReplicatedStorage").Packages._Index:FindFirstChild("sleitnick_knit@1.5.1").knit.Services.FightService.RE.Attack
-local skillRemote = game:GetService("ReplicatedStorage").Packages._Index:FindFirstChild("sleitnick_knit@1.5.1").knit.Services.FightService.RE.SkillAttack
-
 -- Working Proxy Server Hopper
 local function serverHopToCrowdedServer()
     local placeId = game.PlaceId
@@ -235,9 +230,6 @@ local KillAllSwitch = Tab:AddSwitch("Loop TP Kill All", function(Value)
     LoopKillAllActive = Value
     if Value then
         task.spawn(function()
-            local attackArgs = { "Attack" }
-            local skillArgs = { "Skill" }
-            
             while LoopKillAllActive do
                 local myChar = player.Character
                 local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
@@ -267,13 +259,6 @@ local KillAllSwitch = Tab:AddSwitch("Loop TP Kill All", function(Value)
                                 
                                 -- Teleport directly to the target player
                                 myRoot.CFrame = tRoot.CFrame * CFrame.new(0, 0, 3)
-                                
-                                -- Replaced backpack punch with your framework remotes
-                                changeActionMode:FireServer(unpack(attackArgs))
-                                attackRemote:FireServer()
-                                
-                                changeActionMode:FireServer(unpack(skillArgs))
-                                skillRemote:FireServer()
                                 
                                 task.wait(0.05)
                                 timeSpent = timeSpent + 0.05 
