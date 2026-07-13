@@ -169,6 +169,13 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 
+-- Elerium v2 UI Setup Example (Ensure your window/tab variables match your loader)
+-- local window = library:AddWindow("Name GUI", { main_color = Color3.fromRGB(41, 74, 122), min_size = Vector2.new(250, 346), can_resize = false })
+-- local Tab = window:AddTab("Main")
+
+-- Create UI elements using Elerium v2 syntax
+local ServerHopLabel = Tab:AddLabel("Next Server Hop in: 60s")
+
 -- Working Proxy Server Hopper
 local function serverHopToCrowdedServer()
     local placeId = game.PlaceId
@@ -225,7 +232,7 @@ local function serverHopToCrowdedServer()
     end)
 end
 
--- 5. Loop TP Kill All Switch
+-- Elerium v2 AddSwitch structure
 local KillAllSwitch = Tab:AddSwitch("Loop TP Kill All", function(Value)
     LoopKillAllActive = Value
     if Value then
@@ -272,11 +279,20 @@ local KillAllSwitch = Tab:AddSwitch("Loop TP Kill All", function(Value)
     end
 end)
 
--- Force the switch to turn on instantly
+-- Force Elerium v2 switch state active on startup
 KillAllSwitch:Set(true)
 
--- Start 1-Minute Server Hop Countdown Timer Loop
+-- Live Countdown Thread utilizing Elerium's Text Instance Updating
 task.spawn(function()
-    task.wait(60) -- Wait exactly 1 minute
+    local timeLeft = 60
+    
+    while timeLeft > 0 do
+        -- Updates the text string within the UI element wrapper directly
+        ServerHopLabel.Text = "Next Server Hop in: " .. tostring(timeLeft) .. "s"
+        task.wait(1)
+        timeLeft = timeLeft - 1
+    end
+    
+    ServerHopLabel.Text = "Server Hopping Now..."
     serverHopToCrowdedServer()
 end)
