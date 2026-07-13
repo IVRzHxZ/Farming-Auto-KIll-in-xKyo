@@ -1,0 +1,297 @@
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/IVRzHxZ/Kyo-UI-Library/refs/heads/main/Kyo-UI-LibraryxPrivate", true))()
+
+-- Make sure the Players service is available
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Dynamically generate the window title with a welcome message
+local windowTitle = "Auto Kill ☠️ | Welcome, " .. LocalPlayer.DisplayName
+
+local Window = library:AddWindow(windowTitle, {
+    main_color = Color3.fromRGB(41, 74, 122),
+    min_size = Vector2.new(250, 200),
+    can_resize = false
+})
+
+-- Create tab after vars are ready
+local Tab = Window:AddTab("☠️ Combat") -- Name of tab
+
+local myStatNames = {"Kills"}
+local My_UI_Labels = {}
+local startingStats = {} 
+
+-- Dummy/Mock Object to represent an Attribute as a Value Object
+local AttributeMock = {}
+AttributeMock.__index = AttributeMock
+function AttributeMock.new(instance, attribName)
+    return setmetatable({Instance = instance, Name = attribName, ClassName = "AttributeValue", IsMock = true}, AttributeMock)
+end
+function AttributeMock:IsA(className) return className == "ValueBase" end
+-- Custom setter/getter proxy to let the loop treat it like a normal ValueObject
+local currentMeta = {
+    __index = function(t, k) if k == "Value" then return t.Instance:GetAttribute(t.Name) end return rawget(t, k) end,
+    __newindex = function(t, k, v) if k == "Value" then t.Instance:SetAttribute(t.Name, v) else rawset(t, k, v) end end
+}
+
+-- Construct UI Elements Natively
+for _, name in ipairs(myStatNames) do
+    My_UI_Labels[name] = Tab:AddLabel(name .. ": Loading...")
+end
+
+-- Number Abbreviation Engine (1000 -> 1K)
+local suffixes = {"K", "M", "B", "T", "QA", "QI"}
+local function formatNumber(value)
+    if not value or typeof(value) ~= "number" then return "0" end
+    if value < 1000 then return tostring(value) end
+    
+    local index = math.floor(math.log10(value) / 3)
+    local suffix = suffixes[index] or ""
+    local abbreviated = value / (10 ^ (index * 3))
+    
+    return string.format("%.1f", abbreviated):gsub("%.0$", "") .. suffix
+end
+
+-- Nuclear Search Engine: Intercepts Folders, Character Model, Attributes, and Fuzzy Plurals
+local function locatePlayerStatObject(targetPlayer, statName)
+    if not targetPlayer then return nil end
+    local cleanTarget = string.lower(string.gsub(statName, "%s+", ""))
+    
+    -- --- METHOD 1: ATTRIBUTE SCAN (Most Modern Games) ---
+    -- Check attributes on Player instance
+    for attribName, _ in pairs(targetPlayer:GetAttributes()) do
+        local cleanAttrib = string.lower(string.gsub(attribName, "%s+", ""))
+        if cleanAttrib:find(cleanTarget) or cleanTarget:find(cleanAttrib) then
+            local mock = AttributeMock.new(targetPlayer, attribName)
+            return setmetatable(mock, currentMeta)
+        end
+    end
+    -- Check attributes on Character Model
+    if targetPlayer.Character then
+        for attribName, _ in pairs(targetPlayer.Character:GetAttributes()) do
+            local cleanAttrib = string.lower(string.gsub(attribName, "%s+", ""))
+            if cleanAttrib:find(cleanTarget) or cleanTarget:find(cleanAttrib) then
+                local mock = AttributeMock.new(targetPlayer.Character, attribName)
+                return setmetatable(mock, currentMeta)
+            end
+        end
+    end
+    
+    -- --- METHOD 2: DEEP FOLDER SCAN & FUZZY MATCH ---
+    local possibleFolders = {
+        "leaderstats", "Leaderboard", "Stats", "localstats", "Data", "leaderstats2", 
+        "Karma", "PlayerData", "Save", "Currency", "PointData", "Statistics", 
+        "PlayerStats", "Values", "LevelData", "Inventory", "HiddenStats", "CashData",
+        "Attributes", "Status", "RankData", "UserStats", "GameData"
+    }
+    
+    -- Check predefined folders with fuzzy text boundaries
+    for _, folderName in ipairs(possibleFolders) do
+        local folder = targetPlayer:FindFirstChild(folderName)
+        if folder then
+            for _, child in ipairs(folder:GetChildren()) do
+                local cleanChildName = string.lower(string.gsub(child.Name, "%s+", ""))
+                if cleanChildName:find(cleanTarget) or cleanTarget:find(cleanChildName) then 
+                    return child 
+                end
+            end
+        end
+    end
+    
+    -- Scan custom folders inside player root
+    for _, child in ipairs(targetPlayer:GetChildren()) do
+        if child:IsA("Folder") or child:IsA("Configuration") then
+            for _, subChild in ipairs(child:GetChildren()) do
+                local cleanSubChildName = string.lower(string.gsub(subChild.Name, "%s+", ""))
+                if cleanSubChildName:find(cleanTarget) or cleanTarget:find(cleanSubChildName) then 
+                    return subChild 
+                end
+            end
+        end
+    end
+    
+    -- Scan character model folders
+    if targetPlayer.Character then
+        for _, child in ipairs(targetPlayer.Character:GetChildren()) do
+            if child:IsA("Folder") or child:IsA("Configuration") or child.ClassName:find("Value") then
+                local cleanChildName = string.lower(string.gsub(child.Name, "%s+", ""))
+                if cleanChildName:find(cleanTarget) or cleanTarget:find(cleanChildName) then 
+                    return child 
+                end
+            end
+        end
+    end
+    
+    return nil
+end
+
+-- Capture Starting Baseline Values Immediately
+for _, name in ipairs(myStatNames) do
+    local statObj = locatePlayerStatObject(LocalPlayer, name)
+    if statObj then
+        startingStats[name] = tonumber(statObj.Value) or 0
+    else
+        startingStats[name] = 0
+    end
+end
+
+-- Asynchronous Visual Update Loop for Local Player
+task.spawn(function()
+    while task.wait(0.2) do
+        for _, name in ipairs(myStatNames) do
+            local statObj = locatePlayerStatObject(LocalPlayer, name)
+            local uiElement = My_UI_Labels[name]
+            
+            if uiElement then
+                if statObj then
+                    local currentVal = tonumber(statObj.Value) or 0
+                    local startVal = startingStats[name] or currentVal
+                    
+                    if startVal == 0 and startingStats[name] == 0 then
+                        startingStats[name] = currentVal
+                        startVal = currentVal
+                    end
+                    
+                    local gained = currentVal - startVal
+                    local formattedCurrent = formatNumber(currentVal)
+                    local formattedGained = formatNumber(gained)
+                    
+                    uiElement.Text = string.format("%s: %s (+%s)", name, formattedCurrent, formattedGained)
+                else
+                    uiElement.Text = name .. ": Missing"
+                end
+            end
+        end
+    end
+end)
+
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local player = Players.LocalPlayer
+
+-- Remotes Variables Setup
+local changeActionMode = game:GetService("ReplicatedStorage").Packages._Index:FindFirstChild("sleitnick_knit@1.5.1").knit.Services.MainService.RE.ChangeActionMode
+local attackRemote = game:GetService("ReplicatedStorage").Packages._Index:FindFirstChild("sleitnick_knit@1.5.1").knit.Services.FightService.RE.Attack
+local skillRemote = game:GetService("ReplicatedStorage").Packages._Index:FindFirstChild("sleitnick_knit@1.5.1").knit.Services.FightService.RE.SkillAttack
+
+-- Working Proxy Server Hopper
+local function serverHopToCrowdedServer()
+    local placeId = game.PlaceId
+    local currentJobId = game.JobId
+    
+    -- Using RoProxy to bypass Roblox's inner HttpGet API block
+    local baseURL = "https://roproxy.com" .. placeId .. "/servers/Public?sortOrder=Desc&limit=100"
+    local cursor = ""
+    
+    for i = 1, 3 do -- Scan up to 3 pages deep to find the absolute full/best servers
+        local apiURL = baseURL .. (cursor ~= "" and "&cursor=" .. cursor or "")
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(apiURL))
+        end)
+        
+        if success and result and result.data then
+            local bestServers = {}
+            for _, server in ipairs(result.data) do
+                -- Filter out your current server, empty servers, or broken servers
+                if server.id ~= currentJobId and server.playing < server.maxPlayers and server.playing > 1 then
+                    table.insert(bestServers, server)
+                end
+            end
+            
+            -- Sort by highest player count descending
+            table.sort(bestServers, function(a, b)
+                return a.playing > b.playing
+            end)
+            
+            -- Teleport to a top crowded server
+            if #bestServers > 0 then
+                -- Target the highest populated server that has slots open
+                local targetServer = bestServers[1]
+                pcall(function()
+                    TeleportService:TeleportToPlaceInstance(placeId, targetServer.id, player)
+                end)
+                return
+            end
+            
+            -- Advance to the next page if no active open servers are on this block
+            if result.nextPageCursor and result.nextPageCursor ~= "" then
+                cursor = result.nextPageCursor
+            else
+                break
+            end
+        else
+            break
+        end
+    end
+    
+    -- Ultimate fallback if API errors or RoProxy fails
+    pcall(function()
+        TeleportService:Teleport(placeId, player)
+    end)
+end
+
+-- 5. Loop TP Kill All Switch
+local KillAllSwitch = Tab:AddSwitch("Loop TP Kill All", function(Value)
+    LoopKillAllActive = Value
+    if Value then
+        task.spawn(function()
+            local attackArgs = { "Attack" }
+            local skillArgs = { "Skill" }
+            
+            while LoopKillAllActive do
+                local myChar = player.Character
+                local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                local myHumanoid = myChar and myChar:FindFirstChildOfClass("Humanoid")
+
+                if myChar and myRoot and myHumanoid then
+                    local targetList = Players:GetPlayers()
+                    
+                    for _, targetPlayer in ipairs(targetList) do
+                        if not LoopKillAllActive then break end
+                        
+                        local whitelisted = false
+                        if type(isWhitelisted) == "function" then
+                            whitelisted = isWhitelisted(targetPlayer)
+                        end
+                        
+                        if targetPlayer ~= player and targetPlayer.Character and not whitelisted then
+                            local tRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                            local timeSpent = 0
+                            
+                            while LoopKillAllActive and tRoot and targetPlayer.Parent == Players and timeSpent < 0.5 do
+                                myChar = player.Character
+                                myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                                myHumanoid = myChar and myChar:FindFirstChildOfClass("Humanoid")
+                                
+                                if not (myChar and myRoot and myHumanoid) then break end
+                                
+                                -- Teleport directly to the target player
+                                myRoot.CFrame = tRoot.CFrame * CFrame.new(0, 0, 3)
+                                
+                                -- Replaced backpack punch with your framework remotes
+                                changeActionMode:FireServer(unpack(attackArgs))
+                                attackRemote:FireServer()
+                                
+                                changeActionMode:FireServer(unpack(skillArgs))
+                                skillRemote:FireServer()
+                                
+                                task.wait(0.05)
+                                timeSpent = timeSpent + 0.05 
+                            end
+                        end
+                    end
+                end
+                task.wait(0.1) 
+            end
+        end)
+    end
+end)
+
+-- Force the switch to turn on instantly
+KillAllSwitch:Set(true)
+
+-- Start 1-Minute Server Hop Countdown Timer Loop
+task.spawn(function()
+    task.wait(60) -- Wait exactly 1 minute
+    serverHopToCrowdedServer()
+end)
