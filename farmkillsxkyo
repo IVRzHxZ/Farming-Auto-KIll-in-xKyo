@@ -169,8 +169,6 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 
--- Elerium v2 UI Setup Example (Ensure your window/tab variables match your loader)
--- local window = library:AddWindow("Name GUI", { main_color = Color3.fromRGB(41, 74, 122), min_size = Vector2.new(250, 346), can_resize = false })
 -- local Tab = window:AddTab("Main")
 
 -- Create UI elements using Elerium v2 syntax
