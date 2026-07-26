@@ -14,10 +14,12 @@ local CoreGui = game:GetService("CoreGui")
 
 -- Cache tracking variables
 local friendCache = {}
+local totalKills = 0
 
 -- --- SCREEN GUI CREATION ---
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HopKillTracker"
+
 -- Use CoreGui if available to prevent game-side script detection, fallback to PlayerGui
 local successGui, errGui = pcall(function()
     ScreenGui.Parent = CoreGui
@@ -30,7 +32,7 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 220, 0, 90)
 MainFrame.Position = UDim2.new(0, 20, 0, 20) -- Positioned at top-left corner
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true -- Allows you to reposition it anywhere on your screen
@@ -41,7 +43,7 @@ UICorner.CornerRadius = UDim.new(0, 8)
 UICorner.Parent = MainFrame
 
 local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(0, 170, 255)
+UIStroke.Color = Color3.fromRGB(255, 0, 0)
 UIStroke.Thickness = 1.5
 UIStroke.Parent = MainFrame
 
@@ -49,9 +51,9 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Size = UDim2.new(1, 0, 0, 25)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "Auto Kill Private"
-TitleLabel.TextColor3 = Color3.fromRGB(0, 170, 255)
-TitleLabel.TextSize = 13
+TitleLabel.Text = "Farming Kills ☠️"
+TitleLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+TitleLabel.TextSize = 18
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.Parent = MainFrame
 
@@ -71,11 +73,34 @@ KillsLabel.Name = "KillsLabel"
 KillsLabel.Size = UDim2.new(1, 0, 0, 25)
 KillsLabel.Position = UDim2.new(0, 0, 0, 55)
 KillsLabel.BackgroundTransparency = 1
-KillsLabel.Text = "GGS"
-KillsLabel.TextColor3 = Color3.fromRGB(0, 255, 127)
-KillsLabel.TextSize = 14
+KillsLabel.Text = "Kills: 0"
+KillsLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+KillsLabel.TextSize = 16
 KillsLabel.Font = Enum.Font.Gotham
 KillsLabel.Parent = MainFrame
+
+-- Update Kills Display Function
+local function UpdateKillsDisplay()
+    KillsLabel.Text = "Kills ☠️  " .. tostring(totalKills)
+end
+
+-- Track Leaderboard Kills Automatically
+local function setupLeaderboardTracking()
+    local leaderstats = player:WaitForChild("leaderstats", 5)
+    if leaderstats then
+        -- Searches for common kill currency names in leaderboard
+        local killsValue = leaderstats:FindFirstChild("Kills") or leaderstats:FindFirstChild("Kills ") or leaderstats:FindFirstChild("Kills:") or leaderstats:FindFirstChild("Streak")
+        if killsValue and (killsValue:IsA("IntValue") or killsValue:IsA("NumberValue")) then
+            totalKills = killsValue.Value
+            UpdateKillsDisplay()
+            killsValue.Changed:Connect(function(newVal)
+                totalKills = newVal
+                UpdateKillsDisplay()
+            end)
+        end
+    end
+end
+task.spawn(setupLeaderboardTracking)
 
 -- Automatic friend checking whitelist logic
 local function isWhitelisted(targetPlayer)
@@ -146,10 +171,15 @@ local function AutoKillLobby()
                     remotes.SizeChanged:FireServer(1)
                 end
                 
-                -- Verify if blow landed a killing strike
+                -- Verify if blow landed a killing strike (Manual Fallback)
                 if tHumanoid.Health <= 0 then
-                    TotalKills = TotalKills + 1
-                    UpdateKillsDisplay()
+                    -- Only increment manually if leaderboard fails to update it
+                    local leaderstats = player:FindFirstChild("leaderstats")
+                    local killsValue = leaderstats and (leaderstats:FindFirstChild("Kills") or leaderstats:FindFirstChild("Streak"))
+                    if not killsValue then
+                        totalKills = totalKills + 1
+                        UpdateKillsDisplay()
+                    end
                     break
                 end
                 
@@ -162,7 +192,6 @@ end
 
 -- Finds a valid target destination server 
 function GetNextServerID()
-    local Site;
     local url = 'https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'
     if foundAnything ~= "" then
         url = url .. '&cursor=' .. foundAnything
@@ -206,7 +235,6 @@ end)
 
 -- Server hop timing loop
 function Teleport()
-    -- Segmented 10-second wait to dynamically visual-update the screen label text
     local timeLeft = 40
     while timeLeft > 0 do
         CountdownLabel.Text = "Server Hop In: " .. math.ceil(timeLeft) .. "s"
@@ -215,27 +243,24 @@ function Teleport()
     end
     CountdownLabel.Text = "Searching Server..."
     
-    -- Fetch a new server tracking ID destination
     local targetServer = GetNextServerID()
     if targetServer then
         table.insert(AllIDs, targetServer)
         pcall(writefile, "NotSameServers.json", HttpService:JSONEncode(AllIDs))
         
         CountdownLabel.Text = "Server Hopping..."
-        -- Execute cross server migration safely
-        TeleportService:TeleportToPlaceInstance(PlaceID, targetServer, player)
+        pcall(function()
+            TeleportService:TeleportToPlaceInstance(PlaceID, targetServer, player)
+        end)
     else
-        -- If no server was found, clear cache and look again to prevent loop breakages
-        AllIDs = {actualHour}
-        pcall(writefile, "NotSameServers.json", HttpService:JSONEncode(AllIDs))
-        task.wait(1)
+        CountdownLabel.Text = "Hop Failed. Retrying..."
+        task.wait(2)
     end
 end
 
--- Initial execution call point for hopping
+-- Kickstart teleport timer loop
 task.spawn(function()
-    while true do
+    while task.wait(1) do
         Teleport()
-        task.wait(1) -- Safeguard fallback timing limit
     end
 end)
