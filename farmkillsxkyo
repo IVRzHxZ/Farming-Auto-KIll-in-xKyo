@@ -1,6 +1,3 @@
---[[
-	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
-]]
 local PlaceID = game.PlaceId
 local AllIDs = {}
 local foundAnything = ""
@@ -20,7 +17,6 @@ local totalKills = 0
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HopKillTracker"
 
--- Use CoreGui if available to prevent game-side script detection, fallback to PlayerGui
 local successGui, errGui = pcall(function()
     ScreenGui.Parent = CoreGui
 end)
@@ -31,11 +27,11 @@ end
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 220, 0, 90)
-MainFrame.Position = UDim2.new(0, 20, 0, 20) -- Positioned at top-left corner
+MainFrame.Position = UDim2.new(0, 20, 0, 20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.Draggable = true -- Allows you to reposition it anywhere on your screen
+MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
 local UICorner = Instance.new("UICorner")
@@ -79,16 +75,13 @@ KillsLabel.TextSize = 16
 KillsLabel.Font = Enum.Font.Gotham
 KillsLabel.Parent = MainFrame
 
--- Update Kills Display Function
 local function UpdateKillsDisplay()
     KillsLabel.Text = "Kills ☠️  " .. tostring(totalKills)
 end
 
--- Track Leaderboard Kills Automatically
 local function setupLeaderboardTracking()
     local leaderstats = player:WaitForChild("leaderstats", 5)
     if leaderstats then
-        -- Searches for common kill currency names in leaderboard
         local killsValue = leaderstats:FindFirstChild("Kills") or leaderstats:FindFirstChild("Kills ") or leaderstats:FindFirstChild("Kills:") or leaderstats:FindFirstChild("Streak")
         if killsValue and (killsValue:IsA("IntValue") or killsValue:IsA("NumberValue")) then
             totalKills = killsValue.Value
@@ -102,7 +95,6 @@ local function setupLeaderboardTracking()
 end
 task.spawn(setupLeaderboardTracking)
 
--- Automatic friend checking whitelist logic
 local function isWhitelisted(targetPlayer)
     if not targetPlayer or not targetPlayer:IsA("Player") then return false end
     if friendCache[targetPlayer.UserId] ~= nil then
@@ -118,16 +110,22 @@ local function isWhitelisted(targetPlayer)
     return false
 end
 
--- Read existing cache file safely
-local File = pcall(function()
-    AllIDs = HttpService:JSONDecode(readfile("NotSameServers.json"))
-end)
-if not File then
-    table.insert(AllIDs, actualHour)
-    pcall(writefile, "NotSameServers.json", HttpService:JSONEncode(AllIDs))
+local function loadHistory()
+    if isfile("NotSameServers.json") then
+        local content = readfile("NotSameServers.json")
+        local success, decoded = pcall(HttpService.JSONDecode, HttpService, content)
+        if success and type(decoded) == "table" then
+            AllIDs = decoded
+        end
+    end
+    
+    if #AllIDs == 0 or AllIDs[1] ~= actualHour then
+        AllIDs = {actualHour}
+        pcall(writefile, "NotSameServers.json", HttpService:JSONEncode(AllIDs))
+    end
 end
+loadHistory()
 
--- Completely standalone automated TP kill script running infinitely
 local function AutoKillLobby()
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local targetList = Players:GetPlayers()
@@ -138,7 +136,6 @@ local function AutoKillLobby()
             local tHumanoid = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
             local timeSpent = 0
             
-            -- Keep targeting the designated individual for up to 0.5s max
             while tRoot and tHumanoid and tHumanoid.Health > 0 and targetPlayer.Parent == Players and timeSpent < 0.5 do
                 local myChar = player.Character
                 local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
@@ -149,10 +146,8 @@ local function AutoKillLobby()
                     break 
                 end
                 
-                -- Teleports your character directly behind the enemy player
                 myRoot.CFrame = tRoot.CFrame * CFrame.new(0, 0, 3)
                 
-                -- Tool verification and automatic equipping
                 local tool = myChar:FindFirstChild("Punch")
                 if not tool then
                     local backpack = player:FindFirstChild("Backpack")
@@ -165,15 +160,12 @@ local function AutoKillLobby()
                 
                 if tool then tool:Activate() end
                 
-                -- Fires game specific resize remotes automatically
                 local remotes = ReplicatedStorage:FindFirstChild("RemotesEvent")
                 if remotes and remotes:FindFirstChild("SizeChanged") then
                     remotes.SizeChanged:FireServer(1)
                 end
                 
-                -- Verify if blow landed a killing strike (Manual Fallback)
                 if tHumanoid.Health <= 0 then
-                    -- Only increment manually if leaderboard fails to update it
                     local leaderstats = player:FindFirstChild("leaderstats")
                     local killsValue = leaderstats and (leaderstats:FindFirstChild("Kills") or leaderstats:FindFirstChild("Streak"))
                     if not killsValue then
@@ -190,9 +182,8 @@ local function AutoKillLobby()
     end
 end
 
--- Finds a valid target destination server 
 function GetNextServerID()
-    local url = 'https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'
+    local url = 'https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Desc&limit=100'
     if foundAnything ~= "" then
         url = url .. '&cursor=' .. foundAnything
     end
@@ -202,10 +193,12 @@ function GetNextServerID()
     end)
     
     if not success or not res or not res.data then return nil end
-    if res.nextPageCursor and res.nextPageCursor ~= "null" then
+    
+    if res.nextPageCursor and res.nextPageCursor ~= "" and res.nextPageCursor ~= "null" then
         foundAnything = res.nextPageCursor
     end
 
+    local validServers = {}
     for _, v in pairs(res.data) do
         local ID = tostring(v.id)
         if tonumber(v.maxPlayers) > tonumber(v.playing) and ID ~= game.JobId then
@@ -218,22 +211,25 @@ function GetNextServerID()
             end
             
             if not alreadyVisited then
-                return ID
+                table.insert(validServers, ID)
             end
         end
     end
+    
+    if #validServers > 0 then
+        return validServers[math.random(1, #validServers)]
+    end
+    
     return nil
 end
 
--- Separate background loop running the Kill All nonstop
 task.spawn(function()
     while true do
         pcall(AutoKillLobby)
-        task.wait(0.1) -- Fast reset loop to scan and kill players continuously
+        task.wait(0.1)
     end
 end)
 
--- Server hop timing loop
 function Teleport()
     local timeLeft = 40
     while timeLeft > 0 do
@@ -241,26 +237,45 @@ function Teleport()
         task.wait(1)
         timeLeft = timeLeft - 1
     end
-    CountdownLabel.Text = "Searching Server..."
     
-    local targetServer = GetNextServerID()
+    local attempts = 0
+    local targetServer = nil
+    
+    while not targetServer and attempts < 10 do
+        CountdownLabel.Text = "Searching Server (Attempt " .. (attempts + 1) .. ")..."
+        targetServer = GetNextServerID()
+        if not targetServer then
+            attempts = attempts + 1
+            task.wait(1)
+        end
+    end
+    
     if targetServer then
         table.insert(AllIDs, targetServer)
         pcall(writefile, "NotSameServers.json", HttpService:JSONEncode(AllIDs))
         
         CountdownLabel.Text = "Server Hopping..."
+        
+        local teleportOptions = Instance.new("TeleportOptions")
+        
+        TeleportService.TeleportInitFailed:Connect(function(player, result, message)
+            CountdownLabel.Text = "Retrying Hop..."
+            task.wait(2)
+            Teleport()
+        end)
+
         pcall(function()
             TeleportService:TeleportToPlaceInstance(PlaceID, targetServer, player)
         end)
     else
-        CountdownLabel.Text = "Hop Failed. Retrying..."
+        CountdownLabel.Text = "No Servers Found. Resetting History..."
+        AllIDs = {actualHour}
+        pcall(writefile, "NotSameServers.json", HttpService:JSONEncode(AllIDs))
         task.wait(2)
+        Teleport()
     end
 end
 
--- Kickstart teleport timer loop
 task.spawn(function()
-    while task.wait(1) do
-        Teleport()
-    end
+    Teleport()
 end)
