@@ -317,7 +317,7 @@ function Teleport()
     if targetServer then
         table.insert(AllIDs, targetServer)
         pcall(writefile, "NotSameServers.json", HttpService:JSONEncode(AllIDs))
-        CountdownLabel.Text = "Hopping..."
+        CountdownLabel.Text = "Server Hopping..."
         
         TeleportService.TeleportInitFailed:Connect(function(player, result, message)
             CountdownLabel.Text = "Failed. Retrying..."
