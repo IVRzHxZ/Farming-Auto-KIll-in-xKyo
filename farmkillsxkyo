@@ -206,7 +206,7 @@ local function AutoKillLobby()
             if tRoot and tHumanoid and tHumanoid.Health > 0 then
                 local startTime = tick()
                 -- Kill loop for 1 second per player
-                while tick() - startTime < 1 and tHumanoid.Health > 0 do
+                while tick() - startTime < 0.6 and tHumanoid.Health > 0 do
                     local myChar = player.Character
                     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
                     local myHumanoid = myChar and myChar:FindFirstChildOfClass("Humanoid")
