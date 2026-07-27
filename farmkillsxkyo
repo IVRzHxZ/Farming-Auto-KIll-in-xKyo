@@ -10,6 +10,7 @@ local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Cache tracking variables
 local friendCache = {}
@@ -80,7 +81,6 @@ UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 2)
 UIListLayout.Parent = ContentContainer
 
--- --- LOADING BAR COMPONENTS ---
 local ProgressContainer = Instance.new("Frame")
 ProgressContainer.Name = "ProgressContainer"
 ProgressContainer.Size = UDim2.new(1, 0, 0, 6)
@@ -196,7 +196,6 @@ end
 loadHistory()
 
 local function AutoKillLobby()
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local targetList = Players:GetPlayers()
     
     for _, targetPlayer in ipairs(targetList) do
@@ -205,25 +204,33 @@ local function AutoKillLobby()
             local tHumanoid = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
             
             if tRoot and tHumanoid and tHumanoid.Health > 0 then
-                local myChar = player.Character
-                local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-                local myHumanoid = myChar and myChar:FindFirstChildOfClass("Humanoid")
-                
-                if myChar and myRoot and myHumanoid then
-                    myRoot.CFrame = tRoot.CFrame * CFrame.new(0, 0, 3)
+                local startTime = tick()
+                -- Kill loop for 1 second per player
+                while tick() - startTime < 1 and tHumanoid.Health > 0 do
+                    local myChar = player.Character
+                    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                    local myHumanoid = myChar and myChar:FindFirstChildOfClass("Humanoid")
                     
-                    local tool = myChar:FindFirstChild("Punch") or player.Backpack:FindFirstChild("Punch")
-                    if tool then
-                        if tool.Parent ~= myChar then
-                            myHumanoid:EquipTool(tool)
+                    if myChar and myRoot and myHumanoid then
+                        -- Lock to player position (directly behind)
+                        myRoot.CFrame = tRoot.CFrame * CFrame.new(0, 0, 3)
+                        
+                        -- Auto Punch Logic
+                        local tool = myChar:FindFirstChild("Punch") or player.Backpack:FindFirstChild("Punch")
+                        if tool then
+                            if tool.Parent ~= myChar then
+                                myHumanoid:EquipTool(tool)
+                            end
+                            tool:Activate()
                         end
-                        tool:Activate()
+                        
+                        -- Remote trigger if exists
+                        local remotes = ReplicatedStorage:FindFirstChild("RemotesEvent")
+                        if remotes and remotes:FindFirstChild("SizeChanged") then
+                            remotes.SizeChanged:FireServer(1)
+                        end
                     end
-                    
-                    local remotes = ReplicatedStorage:FindFirstChild("RemotesEvent")
-                    if remotes and remotes:FindFirstChild("SizeChanged") then
-                        remotes.SizeChanged:FireServer(1)
-                    end
+                    RunService.Heartbeat:Wait()
                 end
             end
         end
