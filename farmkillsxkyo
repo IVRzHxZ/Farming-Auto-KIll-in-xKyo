@@ -9,6 +9,7 @@ local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 -- Cache tracking variables
 local friendCache = {}
@@ -31,7 +32,7 @@ end
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 240, 0, 140)
+MainFrame.Size = UDim2.new(0, 240, 0, 150)
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
@@ -63,7 +64,7 @@ TitleLabel.Size = UDim2.new(1, 0, 0, 35)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text = "Farming Kills ☠️"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 18
+TitleLabel.TextSize = 20
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.Parent = MainFrame
 
@@ -78,6 +79,30 @@ local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 2)
 UIListLayout.Parent = ContentContainer
+
+-- --- LOADING BAR COMPONENTS ---
+local ProgressContainer = Instance.new("Frame")
+ProgressContainer.Name = "ProgressContainer"
+ProgressContainer.Size = UDim2.new(1, 0, 0, 6)
+ProgressContainer.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+ProgressContainer.BorderSizePixel = 0
+ProgressContainer.LayoutOrder = 10
+ProgressContainer.Parent = ContentContainer
+
+local ProgressCorner = Instance.new("UICorner")
+ProgressCorner.CornerRadius = UDim.new(1, 0)
+ProgressCorner.Parent = ProgressContainer
+
+local ProgressBar = Instance.new("Frame")
+ProgressBar.Name = "ProgressBar"
+ProgressBar.Size = UDim2.new(0, 0, 1, 0)
+ProgressBar.BackgroundColor3 = Color3.fromRGB(255, 45, 45)
+ProgressBar.BorderSizePixel = 0
+ProgressBar.Parent = ProgressContainer
+
+local ProgressBarCorner = Instance.new("UICorner")
+ProgressBarCorner.CornerRadius = UDim.new(1, 0)
+ProgressBarCorner.Parent = ProgressBar
 
 local function CreateStatLabel(name, text)
     local label = Instance.new("TextLabel")
@@ -109,11 +134,9 @@ local function setupLeaderboardTracking()
     local leaderstats = player:WaitForChild("leaderstats", 15)
     if not leaderstats then return end
 
-    -- Look for Kills and Streak values
     local killsValue = leaderstats:FindFirstChild("Kills") or leaderstats:FindFirstChild("Kills ")
     local streakValue = leaderstats:FindFirstChild("Streak") or leaderstats:FindFirstChild("KillStreak") or leaderstats:FindFirstChild("Kill Streak")
 
-    -- Handle Kills Tracking
     if killsValue and (killsValue:IsA("IntValue") or killsValue:IsA("NumberValue")) then
         local lastKills = killsValue.Value
         totalKills = lastKills
@@ -129,7 +152,6 @@ local function setupLeaderboardTracking()
         end)
     end
 
-    -- Handle Streak Tracking
     if streakValue and (streakValue:IsA("IntValue") or streakValue:IsA("NumberValue")) then
         currentStreak = streakValue.Value
         streakValue.Changed:Connect(function(newVal)
@@ -257,9 +279,18 @@ task.spawn(function()
 end)
 
 function Teleport()
-    local timeLeft = 40
+    local maxTime = 40
+    local timeLeft = maxTime
+    
+    ProgressBar.Size = UDim2.new(1, 0, 1, 0)
+    
     while timeLeft > 0 do
         CountdownLabel.Text = "Next Hop: " .. math.ceil(timeLeft) .. "s"
+        local progress = timeLeft / maxTime
+        TweenService:Create(ProgressBar, TweenInfo.new(1, Enum.EasingStyle.Linear), {
+            Size = UDim2.new(progress, 0, 1, 0)
+        }):Play()
+        
         task.wait(1)
         timeLeft = timeLeft - 1
     end
