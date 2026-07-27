@@ -8,14 +8,19 @@ local player = Players.LocalPlayer
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
 
 -- Cache tracking variables
 local friendCache = {}
 local totalKills = 0
+local sessionKills = 0
+local currentStreak = 0
 
 -- --- SCREEN GUI CREATION ---
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HopKillTracker"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local successGui, errGui = pcall(function()
     ScreenGui.Parent = CoreGui
@@ -26,72 +31,114 @@ end
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 220, 0, 90)
+MainFrame.Size = UDim2.new(0, 240, 0, 140)
 MainFrame.Position = UDim2.new(0, 20, 0, 20)
-MainFrame.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
 local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.CornerRadius = UDim.new(0, 10)
 UICorner.Parent = MainFrame
 
 local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(255, 0, 0)
-UIStroke.Thickness = 1.5
+UIStroke.Color = Color3.fromRGB(255, 45, 45)
+UIStroke.Thickness = 2
+UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 UIStroke.Parent = MainFrame
+
+local UIGradient = Instance.new("UIGradient")
+UIGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 0, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 20))
+})
+UIGradient.Rotation = 45
+UIGradient.Parent = MainFrame
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
-TitleLabel.Size = UDim2.new(1, 0, 0, 25)
+TitleLabel.Size = UDim2.new(1, 0, 0, 35)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text = "Farming Kills ☠️"
-TitleLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 18
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.Parent = MainFrame
 
-local CountdownLabel = Instance.new("TextLabel")
-CountdownLabel.Name = "CountdownLabel"
-CountdownLabel.Size = UDim2.new(1, 0, 0, 25)
-CountdownLabel.Position = UDim2.new(0, 0, 0, 30)
-CountdownLabel.BackgroundTransparency = 1
-CountdownLabel.Text = "Server Hop In: 10s"
-CountdownLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
-CountdownLabel.TextSize = 14
-CountdownLabel.Font = Enum.Font.Gotham
-CountdownLabel.Parent = MainFrame
+local ContentContainer = Instance.new("Frame")
+ContentContainer.Name = "Content"
+ContentContainer.Size = UDim2.new(1, -20, 1, -45)
+ContentContainer.Position = UDim2.new(0, 10, 0, 35)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.Parent = MainFrame
 
-local KillsLabel = Instance.new("TextLabel")
-KillsLabel.Name = "KillsLabel"
-KillsLabel.Size = UDim2.new(1, 0, 0, 25)
-KillsLabel.Position = UDim2.new(0, 0, 0, 55)
-KillsLabel.BackgroundTransparency = 1
-KillsLabel.Text = "Kills: 0"
-KillsLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
-KillsLabel.TextSize = 16
-KillsLabel.Font = Enum.Font.Gotham
-KillsLabel.Parent = MainFrame
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 2)
+UIListLayout.Parent = ContentContainer
 
-local function UpdateKillsDisplay()
-    KillsLabel.Text = "Kills ☠️  " .. tostring(totalKills)
+local function CreateStatLabel(name, text)
+    local label = Instance.new("TextLabel")
+    label.Name = name
+    label.Size = UDim2.new(1, 0, 0, 22)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(220, 220, 220)
+    label.TextSize = 17
+    label.Font = Enum.Font.GothamMedium
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = ContentContainer
+    return label
+end
+
+local KillsLabel = CreateStatLabel("KillsLabel", "Total Kills: 0")
+local GainedLabel = CreateStatLabel("GainedLabel", "Gained Kills: 0")
+local StreakLabel = CreateStatLabel("StreakLabel", "Kill Streak: 0")
+local CountdownLabel = CreateStatLabel("CountdownLabel", "Next Hop: 40s")
+CountdownLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+local function UpdateDisplay()
+    KillsLabel.Text = "Total Kills: " .. totalKills
+    GainedLabel.Text = "Gained Kills: " .. sessionKills
+    StreakLabel.Text = "Kill Streak: " .. currentStreak
 end
 
 local function setupLeaderboardTracking()
-    local leaderstats = player:WaitForChild("leaderstats", 5)
-    if leaderstats then
-        local killsValue = leaderstats:FindFirstChild("Kills") or leaderstats:FindFirstChild("Kills ") or leaderstats:FindFirstChild("Kills:") or leaderstats:FindFirstChild("Streak")
-        if killsValue and (killsValue:IsA("IntValue") or killsValue:IsA("NumberValue")) then
-            totalKills = killsValue.Value
-            UpdateKillsDisplay()
-            killsValue.Changed:Connect(function(newVal)
-                totalKills = newVal
-                UpdateKillsDisplay()
-            end)
-        end
+    local leaderstats = player:WaitForChild("leaderstats", 15)
+    if not leaderstats then return end
+
+    -- Look for Kills and Streak values
+    local killsValue = leaderstats:FindFirstChild("Kills") or leaderstats:FindFirstChild("Kills ")
+    local streakValue = leaderstats:FindFirstChild("Streak") or leaderstats:FindFirstChild("KillStreak") or leaderstats:FindFirstChild("Kill Streak")
+
+    -- Handle Kills Tracking
+    if killsValue and (killsValue:IsA("IntValue") or killsValue:IsA("NumberValue")) then
+        local lastKills = killsValue.Value
+        totalKills = lastKills
+        
+        killsValue.Changed:Connect(function(newVal)
+            local diff = newVal - lastKills
+            if diff > 0 then
+                sessionKills = sessionKills + diff
+            end
+            lastKills = newVal
+            totalKills = newVal
+            UpdateDisplay()
+        end)
     end
+
+    -- Handle Streak Tracking
+    if streakValue and (streakValue:IsA("IntValue") or streakValue:IsA("NumberValue")) then
+        currentStreak = streakValue.Value
+        streakValue.Changed:Connect(function(newVal)
+            currentStreak = newVal
+            UpdateDisplay()
+        end)
+    end
+    
+    UpdateDisplay()
 end
 task.spawn(setupLeaderboardTracking)
 
@@ -134,49 +181,28 @@ local function AutoKillLobby()
         if targetPlayer ~= player and targetPlayer.Character and not isWhitelisted(targetPlayer) then
             local tRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
             local tHumanoid = targetPlayer.Character:FindFirstChildOfClass("Humanoid")
-            local timeSpent = 0
             
-            while tRoot and tHumanoid and tHumanoid.Health > 0 and targetPlayer.Parent == Players and timeSpent < 0.5 do
+            if tRoot and tHumanoid and tHumanoid.Health > 0 then
                 local myChar = player.Character
                 local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
                 local myHumanoid = myChar and myChar:FindFirstChildOfClass("Humanoid")
                 
-                if not (myChar and myRoot and myHumanoid) then 
-                    task.wait(0.1)
-                    break 
-                end
-                
-                myRoot.CFrame = tRoot.CFrame * CFrame.new(0, 0, 3)
-                
-                local tool = myChar:FindFirstChild("Punch")
-                if not tool then
-                    local backpack = player:FindFirstChild("Backpack")
-                    local bpTool = backpack and backpack:FindFirstChild("Punch")
-                    if bpTool then
-                        myHumanoid:EquipTool(bpTool)
-                        tool = bpTool
+                if myChar and myRoot and myHumanoid then
+                    myRoot.CFrame = tRoot.CFrame * CFrame.new(0, 0, 3)
+                    
+                    local tool = myChar:FindFirstChild("Punch") or player.Backpack:FindFirstChild("Punch")
+                    if tool then
+                        if tool.Parent ~= myChar then
+                            myHumanoid:EquipTool(tool)
+                        end
+                        tool:Activate()
+                    end
+                    
+                    local remotes = ReplicatedStorage:FindFirstChild("RemotesEvent")
+                    if remotes and remotes:FindFirstChild("SizeChanged") then
+                        remotes.SizeChanged:FireServer(1)
                     end
                 end
-                
-                if tool then tool:Activate() end
-                
-                local remotes = ReplicatedStorage:FindFirstChild("RemotesEvent")
-                if remotes and remotes:FindFirstChild("SizeChanged") then
-                    remotes.SizeChanged:FireServer(1)
-                end
-                
-                if tHumanoid.Health <= 0 then
-                    local leaderstats = player:FindFirstChild("leaderstats")
-                    local killsValue = leaderstats and (leaderstats:FindFirstChild("Kills") or leaderstats:FindFirstChild("Streak"))
-                    if not killsValue then
-                        totalKills = totalKills + 1
-                        UpdateKillsDisplay()
-                    end
-                    break
-                end
-                
-                task.wait(0.05)
-                timeSpent = timeSpent + 0.05 
             end
         end
     end
@@ -233,7 +259,7 @@ end)
 function Teleport()
     local timeLeft = 40
     while timeLeft > 0 do
-        CountdownLabel.Text = "Server Hop In: " .. math.ceil(timeLeft) .. "s"
+        CountdownLabel.Text = "Next Hop: " .. math.ceil(timeLeft) .. "s"
         task.wait(1)
         timeLeft = timeLeft - 1
     end
@@ -242,7 +268,7 @@ function Teleport()
     local targetServer = nil
     
     while not targetServer and attempts < 10 do
-        CountdownLabel.Text = "Searching Server (Attempt " .. (attempts + 1) .. ")..."
+        CountdownLabel.Text = "Searching... (" .. (attempts + 1) .. ")"
         targetServer = GetNextServerID()
         if not targetServer then
             attempts = attempts + 1
@@ -253,13 +279,10 @@ function Teleport()
     if targetServer then
         table.insert(AllIDs, targetServer)
         pcall(writefile, "NotSameServers.json", HttpService:JSONEncode(AllIDs))
-        
-        CountdownLabel.Text = "Server Hopping..."
-        
-        local teleportOptions = Instance.new("TeleportOptions")
+        CountdownLabel.Text = "Hopping..."
         
         TeleportService.TeleportInitFailed:Connect(function(player, result, message)
-            CountdownLabel.Text = "Retrying Hop..."
+            CountdownLabel.Text = "Failed. Retrying..."
             task.wait(2)
             Teleport()
         end)
@@ -268,7 +291,7 @@ function Teleport()
             TeleportService:TeleportToPlaceInstance(PlaceID, targetServer, player)
         end)
     else
-        CountdownLabel.Text = "No Servers Found. Resetting History..."
+        CountdownLabel.Text = "Resetting History..."
         AllIDs = {actualHour}
         pcall(writefile, "NotSameServers.json", HttpService:JSONEncode(AllIDs))
         task.wait(2)
@@ -276,6 +299,4 @@ function Teleport()
     end
 end
 
-task.spawn(function()
-    Teleport()
-end)
+task.spawn(Teleport)
