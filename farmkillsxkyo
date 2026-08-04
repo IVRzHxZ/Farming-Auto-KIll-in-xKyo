@@ -18,73 +18,161 @@ local totalKills = 0
 local sessionKills = 0
 local currentStreak = 0
 
--- --- SCREEN GUI CREATION ---
+-- --- NEON RED SCREEN GUI CREATION ---
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "HopKillTracker"
+ScreenGui.Name = "HopKillTrackerPro"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-local successGui, errGui = pcall(function()
+local successGui = pcall(function()
     ScreenGui.Parent = CoreGui
 end)
 if not successGui then
-    ScreenGui.Parent = player:WaitForChild("PlayerGui")
+    pcall(function()
+        ScreenGui.Parent = player:WaitForChild("PlayerGui")
+    end)
 end
 
+-- Main Window Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 240, 0, 150)
-MainFrame.Position = UDim2.new(0, 20, 0, 20)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.Size = UDim2.new(0, 300, 0, 215)
+MainFrame.Position = UDim2.new(0, 40, 0, 40)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 12)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 10)
-UICorner.Parent = MainFrame
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
 
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(255, 45, 45)
-UIStroke.Thickness = 2
-UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-UIStroke.Parent = MainFrame
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(255, 0, 51)
+MainStroke.Thickness = 2
+MainStroke.Transparency = 0.1
+MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+MainStroke.Parent = MainFrame
 
-local UIGradient = Instance.new("UIGradient")
-UIGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 0, 0)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 20))
+local MainGradient = Instance.new("UIGradient")
+MainGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(45, 0, 12)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 10, 10))
 })
-UIGradient.Rotation = 45
-UIGradient.Parent = MainFrame
+MainGradient.Rotation = 45
+MainGradient.Parent = MainFrame
+
+-- Top Bar Header
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 40)
+TopBar.BackgroundTransparency = 1
+TopBar.Parent = MainFrame
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
-TitleLabel.Size = UDim2.new(1, 0, 0, 35)
+TitleLabel.Size = UDim2.new(1, -20, 1, 0)
+TitleLabel.Position = UDim2.new(0, 14, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "Farming Kills ☠️"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 20
+TitleLabel.Text = "⚡ AUTOKILL & HOP"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 40, 80)
+TitleLabel.TextSize = 17
 TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Parent = MainFrame
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TopBar
+
+local TitleGlow = Instance.new("UIStroke")
+TitleGlow.Color = Color3.fromRGB(255, 0, 60)
+TitleGlow.Thickness = 1
+TitleGlow.Transparency = 0.4
+TitleGlow.Parent = TitleLabel
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Size = UDim2.new(0, 24, 0, 24)
+ToggleButton.Position = UDim2.new(1, -32, 0.5, -12)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(35, 15, 20)
+ToggleButton.Text = "-"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 100, 120)
+ToggleButton.TextSize = 17
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Parent = TopBar
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.Parent = ToggleButton
+
+local ToggleStroke = Instance.new("UIStroke")
+ToggleStroke.Color = Color3.fromRGB(255, 0, 60)
+ToggleStroke.Thickness = 1
+ToggleStroke.Transparency = 0.3
+ToggleStroke.Parent = ToggleButton
+
+local Divider = Instance.new("Frame")
+Divider.Name = "Divider"
+Divider.Size = UDim2.new(1, -28, 0, 1)
+Divider.Position = UDim2.new(0, 14, 0, 40)
+Divider.BackgroundColor3 = Color3.fromRGB(60, 20, 30)
+Divider.BorderSizePixel = 0
+Divider.Parent = MainFrame
 
 local ContentContainer = Instance.new("Frame")
 ContentContainer.Name = "Content"
-ContentContainer.Size = UDim2.new(1, -20, 1, -45)
-ContentContainer.Position = UDim2.new(0, 10, 0, 35)
+ContentContainer.Size = UDim2.new(1, -28, 1, -55)
+ContentContainer.Position = UDim2.new(0, 14, 0, 48)
 ContentContainer.BackgroundTransparency = 1
 ContentContainer.Parent = MainFrame
 
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 2)
+UIListLayout.Padding = UDim.new(0, 6)
 UIListLayout.Parent = ContentContainer
+
+local function CreateStatCard(name, labelText, order)
+    local Card = Instance.new("Frame")
+    Card.Name = name
+    Card.Size = UDim2.new(1, 0, 0, 28)
+    Card.BackgroundColor3 = Color3.fromRGB(22, 12, 15)
+    Card.BorderSizePixel = 0
+    Card.LayoutOrder = order
+    Card.Parent = ContentContainer
+
+    local CardCorner = Instance.new("UICorner")
+    CardCorner.CornerRadius = UDim.new(0, 6)
+    CardCorner.Parent = Card
+
+    local CardStroke = Instance.new("UIStroke")
+    CardStroke.Color = Color3.fromRGB(255, 0, 60)
+    CardStroke.Thickness = 1
+    CardStroke.Transparency = 0.6
+    CardStroke.Parent = Card
+
+    local Label = Instance.new("TextLabel")
+    Label.Name = "Value"
+    Label.Size = UDim2.new(1, -12, 1, 0)
+    Label.Position = UDim2.new(0, 6, 0, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = labelText
+    Label.TextColor3 = Color3.fromRGB(255, 230, 235)
+    Label.TextSize = 17
+    Label.Font = Enum.Font.GothamMedium
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = Card
+
+    return Label
+end
+
+local KillsLabel = CreateStatCard("KillsCard", "Total Kills: 0", 1)
+local GainedLabel = CreateStatCard("GainedCard", "Gained Kills: 0", 2)
+local StreakLabel = CreateStatCard("StreakCard", "Kill Streak: 0", 3)
+local CountdownLabel = CreateStatCard("CountdownCard", "Next Hop: 40s", 4)
+CountdownLabel.TextColor3 = Color3.fromRGB(255, 80, 110)
 
 local ProgressContainer = Instance.new("Frame")
 ProgressContainer.Name = "ProgressContainer"
 ProgressContainer.Size = UDim2.new(1, 0, 0, 6)
-ProgressContainer.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+ProgressContainer.BackgroundColor3 = Color3.fromRGB(25, 12, 15)
 ProgressContainer.BorderSizePixel = 0
 ProgressContainer.LayoutOrder = 10
 ProgressContainer.Parent = ContentContainer
@@ -96,33 +184,29 @@ ProgressCorner.Parent = ProgressContainer
 local ProgressBar = Instance.new("Frame")
 ProgressBar.Name = "ProgressBar"
 ProgressBar.Size = UDim2.new(0, 0, 1, 0)
-ProgressBar.BackgroundColor3 = Color3.fromRGB(255, 45, 45)
+ProgressBar.BackgroundColor3 = Color3.fromRGB(255, 0, 51)
 ProgressBar.BorderSizePixel = 0
 ProgressBar.Parent = ProgressContainer
+
+local ProgressGlow = Instance.new("UIStroke")
+ProgressGlow.Color = Color3.fromRGB(255, 100, 120)
+ProgressGlow.Thickness = 1
+ProgressGlow.Transparency = 0.3
+ProgressGlow.Parent = ProgressBar
 
 local ProgressBarCorner = Instance.new("UICorner")
 ProgressBarCorner.CornerRadius = UDim.new(1, 0)
 ProgressBarCorner.Parent = ProgressBar
 
-local function CreateStatLabel(name, text)
-    local label = Instance.new("TextLabel")
-    label.Name = name
-    label.Size = UDim2.new(1, 0, 0, 22)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(220, 220, 220)
-    label.TextSize = 17
-    label.Font = Enum.Font.GothamMedium
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = ContentContainer
-    return label
-end
-
-local KillsLabel = CreateStatLabel("KillsLabel", "Total Kills: 0")
-local GainedLabel = CreateStatLabel("GainedLabel", "Gained Kills: 0")
-local StreakLabel = CreateStatLabel("StreakLabel", "Kill Streak: 0")
-local CountdownLabel = CreateStatLabel("CountdownLabel", "Next Hop: 40s")
-CountdownLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+local minimized = false
+ToggleButton.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    ContentContainer.Visible = not minimized
+    ToggleButton.Text = minimized and "+" or "-"
+    TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+        Size = minimized and UDim2.new(0, 300, 0, 40) or UDim2.new(0, 300, 0, 215)
+    }):Play()
+end)
 
 local function UpdateDisplay()
     KillsLabel.Text = "Total Kills: " .. totalKills
@@ -164,37 +248,40 @@ local function setupLeaderboardTracking()
 end
 task.spawn(setupLeaderboardTracking)
 
-local function isWhitelisted(targetPlayer)
-    if not targetPlayer or not targetPlayer:IsA("Player") then return false end
-    if friendCache[targetPlayer.UserId] ~= nil then
-        return friendCache[targetPlayer.UserId]
-    end
-    local success, isFriend = pcall(function()
-        return player:IsFriendsWith(targetPlayer.UserId)
-    end)
-    if success then
-        friendCache[targetPlayer.UserId] = isFriend
-        return isFriend
-    end
-    return false
-end
-
+-- Safe File Loading
 local function loadHistory()
-    if isfile("NotSameServers.json") then
-        local content = readfile("NotSameServers.json")
-        local success, decoded = pcall(HttpService.JSONDecode, HttpService, content)
-        if success and type(decoded) == "table" then
-            AllIDs = decoded
+    if pcall(function() return isfile and isfile("KyoOnTop") end) then
+        local success, content = pcall(readfile, "KyoOnTop")
+        if success and content then
+            local decodedSuccess, decoded = pcall(HttpService.JSONDecode, HttpService, content)
+            if decodedSuccess and type(decoded) == "table" then
+                AllIDs = decoded
+            end
         end
     end
     
     if #AllIDs == 0 or AllIDs[1] ~= actualHour then
         AllIDs = {actualHour}
-        pcall(writefile, "NotSameServers.json", HttpService:JSONEncode(AllIDs))
+        pcall(writefile, "KyoOnTop", HttpService:JSONEncode(AllIDs))
     end
 end
-loadHistory()
+pcall(loadHistory)
 
+-- Global State & Whitelist System
+_G.autokillall = true
+_G.whitelistTable = {} 
+_G.friendsCache = {}
+_G.FriendsWhitelistActive = false
+
+function isWhitelisted(targetPlayer)
+    if not targetPlayer or targetPlayer == player then return true end
+    local targetNameLower = targetPlayer.Name:lower()
+    local targetDisplayLower = targetPlayer.DisplayName:lower()
+    if table.find(_G.whitelistTable, targetNameLower) or table.find(_G.whitelistTable, targetDisplayLower) then return true end
+    return (_G.FriendsWhitelistActive and _G.friendsCache[targetPlayer.UserId]) and true or false
+end
+
+-- New AutoKillLobby Implementation
 local function AutoKillLobby()
     local targetList = Players:GetPlayers()
     
@@ -205,8 +292,8 @@ local function AutoKillLobby()
             
             if tRoot and tHumanoid and tHumanoid.Health > 0 then
                 local startTime = tick()
-                -- Kill loop for 1 second per player
-                while tick() - startTime < 0.6 and tHumanoid.Health > 0 do
+                -- Kill loop for 0.6 seconds per player
+                while tick() - startTime < 0.6 and tHumanoid.Health > 0 and targetPlayer.Character and targetPlayer.Character.Parent do
                     local myChar = player.Character
                     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
                     local myHumanoid = myChar and myChar:FindFirstChildOfClass("Humanoid")
@@ -237,6 +324,15 @@ local function AutoKillLobby()
     end
 end
 
+task.spawn(function()
+    while true do
+        if _G.autokillall and player.Character and player.Character:FindFirstChildOfClass("Humanoid") and player.Character:FindFirstChildOfClass("Humanoid").Health > 0 then
+            AutoKillLobby()
+        end
+        RunService.Heartbeat:Wait() 
+    end
+end)
+
 function GetNextServerID()
     local url = 'https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Desc&limit=100'
     if foundAnything ~= "" then
@@ -256,7 +352,11 @@ function GetNextServerID()
     local validServers = {}
     for _, v in pairs(res.data) do
         local ID = tostring(v.id)
-        if tonumber(v.maxPlayers) > tonumber(v.playing) and ID ~= game.JobId then
+        local playing = tonumber(v.playing) or 0
+        local maxPlayers = tonumber(v.maxPlayers) or 0
+        
+        -- Prioritizing high population servers while ensuring space to join
+        if playing >= 5 and playing < maxPlayers and ID ~= game.JobId then
             local alreadyVisited = false
             for _, Existing in pairs(AllIDs) do
                 if ID == tostring(Existing) then
@@ -277,13 +377,6 @@ function GetNextServerID()
     
     return nil
 end
-
-task.spawn(function()
-    while true do
-        pcall(AutoKillLobby)
-        task.wait(0.1)
-    end
-end)
 
 function Teleport()
     local maxTime = 40
@@ -316,10 +409,10 @@ function Teleport()
     
     if targetServer then
         table.insert(AllIDs, targetServer)
-        pcall(writefile, "NotSameServers.json", HttpService:JSONEncode(AllIDs))
+        pcall(writefile, "KyoOnTop", HttpService:JSONEncode(AllIDs))
         CountdownLabel.Text = "Server Hopping..."
         
-        TeleportService.TeleportInitFailed:Connect(function(player, result, message)
+        TeleportService.TeleportInitFailed:Connect(function(playerObj, result, message)
             CountdownLabel.Text = "Failed. Retrying..."
             task.wait(2)
             Teleport()
@@ -329,9 +422,9 @@ function Teleport()
             TeleportService:TeleportToPlaceInstance(PlaceID, targetServer, player)
         end)
     else
-        CountdownLabel.Text = "Resetting History..."
+        CountdownLabel.Text = "Retrying..."
         AllIDs = {actualHour}
-        pcall(writefile, "NotSameServers.json", HttpService:JSONEncode(AllIDs))
+        pcall(writefile, "KyoOnTop", HttpService:JSONEncode(AllIDs))
         task.wait(2)
         Teleport()
     end
